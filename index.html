@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đặt vé - Trần Thị Kim Thùy</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.page{display:none;max-width:480px;min-height:100vh;margin:auto;padding:20px}
+.page.active{display:block}
+h1{text-align:center;color:#65d9ff;font-size:25px}
+.card{background:#111f33;border:1px solid #293d58;border-radius:18px;padding:18px;margin:15px 0}
+label{display:block;margin:14px 0 7px;color:#c8d8ee}
+input,textarea,select{width:100%;padding:12px;border:1px solid #425674;border-radius:10px;background:#081525;color:white;font-size:15px}
+button{width:100%;padding:13px;border:0;border-radius:10px;margin-top:10px;font-size:15px;font-weight:bold;cursor:pointer}
+.primary{background:#16b8e6;color:#00121e}
+.secondary{background:#263b55;color:white}
+.ticket,.option{background:#192b43;color:white;border:1px solid #385271;text-align:left}
+.ticket.selected,.option.selected{border:2px solid #32d5ff;background:#12354a}
+.price{float:right;color:#62e4ff}
+.total{text-align:center;font-size:22px;color:#6de6ff;margin:18px 0}
+.note{font-size:13px;color:#afc2d9;line-height:1.5}
+.hidden{display:none}
+.invoice{background:white;color:#172234;border-radius:15px;padding:18px}
+.invoice h2{text-align:center;color:#087ba7}
+.line{border-bottom:1px dashed #aaa;padding:10px 0;display:flex;justify-content:space-between;gap:12px;overflow-wrap:anywhere}
+.status{color:#b86c00;font-weight:bold}
+#qr{width:210px;height:210px;background:white;color:#111;border-radius:8px;margin:15px auto;display:flex;align-items:center;justify-content:center;text-align:center;padding:15px}
+@media print{
+ body{background:white;color:black}
+ .page{display:none!important}
+ #page3{display:block!important;max-width:100%}
+ #page3 button{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- TRANG 1: ĐẶT VÉ -->
+<section id="page1" class="page active">
+<h1>🎟️ ĐẶT VÉ ONLINE</h1>
+<p style="text-align:center">Khu vé - Trần Thị Kim Thùy</p>
+
+<div class="card">
+<label>Họ và tên</label>
+<input id="name" placeholder="Nhập họ và tên">
+
+<label>Số điện thoại</label>
+<input id="phone" type="tel" placeholder="Nhập số điện thoại">
+
+<label>Tra cứu đơn hàng</label>
+<input id="lookup" placeholder="Nhập mã đơn hàng">
+<button class="secondary" onclick="lookupOrder()">🔎 Tra cứu đơn hàng</button>
+<p id="lookupResult" class="note"></p>
+
+<label>Chọn loại vé</label>
+<button class="ticket selected" onclick="chooseTicket('Vé thường',50000,this)">
+Vé thường <span class="price">50.000đ</span>
+</button>
+<button class="ticket" onclick="chooseTicket('Vé VIP',100000,this)">
+Vé VIP <span class="price">100.000đ</span>
+</button>
+<button class="ticket" onclick="chooseTicket('Vé đôi',180000,this)">
+Vé đôi <span class="price">180.000đ</span>
+</button>
+
+<!-- MỤC GHI CHÚ -->
+<button class="secondary" onclick="toggleNote()">📝 Ghi chú</button>
+<div id="noteArea" class="hidden">
+<label>Ghi chú của bạn</label>
+<textarea id="userNote" rows="3" maxlength="500"
+placeholder="Bấm vào đây để nhập ghi chú..."></textarea>
+<p class="note">Ghi chú này sẽ xuất hiện ở trang thanh toán và hóa đơn.</p>
+</div>
+
+<label>Số lượng vé</label>
+<input id="qty" type="number" min="1" max="10" value="1" oninput="updateTotal()">
+
+<div class="total">Tổng tiền: <span id="total">50.000đ</span></div>
+<button class="primary" onclick="confirmBooking()">XÁC NHẬN ĐẶT VÉ</button>
+</div>
+
+<p class="note">Bản HTML này lưu đơn trong trình duyệt hiện tại, chưa phải hệ thống lưu trữ trực tuyến.</p>
+</section>
+
+<!-- TRANG 2: THANH TOÁN -->
+<section id="page2" class="page">
+<h1>💳 PHƯƠNG THỨC THANH TOÁN</h1>
+<div class="card">
+<div id="paymentSummary"></div>
+<div class="total" id="paymentTotal"></div>
+
+<label>Chọn phương thức thanh toán</label>
+<button class="option" onclick="selectPayment('card',this)">🎁 Thẻ cào</button>
+<button class="option" onclick="selectPayment('bank',this)">🏦 Chuyển khoản ngân hàng / ZaloPay</button>
+
+<div id="cardArea" class="hidden">
+<h3>🎁 Thông tin thẻ cào</h3>
+<label>Nhà mạng</label>
+<select id="network">
+<option value="">Chọn nhà mạng</option>
+<option>Viettel</option>
+<option>Mobifone</option>
+<option>Vinaphone</option>
+<option>Vietnamobile</option>
+</select>
+<label>Mã seri</label>
+<input id="serial" placeholder="Nhập mã seri">
+<label>Mã nạp</label>
+<input id="cardCode" placeholder="Nhập mã nạp">
+<p class="note">Thông tin thẻ cần được xác minh qua dịch vụ thanh toán hợp lệ. Không nhập thông tin thẻ nếu bạn không muốn gửi thông tin đó.</p>
+<button class="primary" onclick="submitCard()">GỬI THÔNG TIN THANH TOÁN</button>
+</div>
+
+<div id="bankArea" class="hidden">
+<h3>🏦 Thanh toán ZaloPay</h3>
+<div id="qr">QR MINH HỌA<br>Chưa có mã thanh toán thật</div>
+<p class="note">Cần thay bằng QR chính thức được cấp cho đơn hàng. QR minh họa không dùng để chuyển tiền.</p>
+<button class="primary" onclick="showQR()">HIỂN THỊ QR TRONG 3 GIÂY</button>
+<p id="qrMessage" class="note"></p>
+<label>Mã giao dịch (nếu đã chuyển khoản)</label>
+<input id="transaction" placeholder="Nhập mã giao dịch">
+<button class="secondary" onclick="submitBank()">GỬI MÃ GIAO DỊCH</button>
+</div>
+
+<button class="secondary" onclick="goPage(1)">← Quay lại</button>
+</div>
+</section>
+
+<!-- TRANG 3: HÓA ĐƠN -->
+<section id="page3" class="page">
+<h1>🧾 HÓA ĐƠN ĐẶT VÉ</h1>
+<div class="invoice" id="invoice"></div>
+<button class="primary" onclick="window.print()">IN / LƯU HÓA ĐƠN PDF</button>
+<button class="secondary" onclick="goPage(1)">Về trang đặt vé</button>
+</section>
+
+<script>
+let ticketName="Vé thường";
+let ticketPrice=50000;
+let order=null;
+let paymentMethod="";
+
+function money(n){
+ return Number(n).toLocaleString("vi-VN")+"đ";
+}
+
+function escapeHTML(value){
+ return String(value??"").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
+}
+
+function toggleNote(){
+ document.getElementById("noteArea").classList.toggle("hidden");
+}
+
+function chooseTicket(name,price,button){
+ ticketName=name;
+ ticketPrice=price;
+ document.querySelectorAll(".ticket").forEach(b=>b.classList.remove("selected"));
+ button.classList.add("selected");
+ updateTotal();
+}
+
+function updateTotal(){
+ let qty=Math.max(1,Math.min(10,Number(document.getElementById("qty").value)||1));
+ document.getElementById("qty").value=qty;
+ document.getElementById("total").textContent=money(ticketPrice*qty);
+}
+
+function goPage(n){
+ document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+ document.getElementById("page"+n).classList.add("active");
+ window.scrollTo(0,0);
+}
+
+function confirmBooking(){
+ const name=document.getElementById("name").value.trim();
+ const phone=document.getElementById("phone").value.trim();
+ const qty=Number(document.getElementById("qty").value);
+ const note=document.getElementById("userNote").value.trim();
+
+ if(!name||!phone){
+  alert("Vui lòng nhập họ tên và số điện thoại.");
+  return;
+ }
+
+ order={
+  id:"VE"+Date.now().toString().slice(-9),
+  name:name,
+  phone:phone,
+  ticketName:ticketName,
+  qty:qty,
+  total:ticketPrice*qty,
+  note:note,
+  created:new Date().toLocaleString("vi-VN"),
+  payment:"Chưa chọn",
+  status:"Chờ thanh toán / xác minh"
+ };
+
+ saveOrder();
+
+ document.getElementById("paymentSummary").innerHTML=
+  "<p><b>Mã đơn:</b> "+escapeHTML(order.id)+"</p>"+
+  "<p><b>Loại vé:</b> "+escapeHTML(order.ticketName)+"</p>"+
+  "<p><b>Số lượng:</b> "+order.qty+"</p>"+
+  "<p><b>Ghi chú:</b> "+escapeHTML(order.note||"Không có ghi chú")+"</p>";
+
+ document.getElementById("paymentTotal").textContent=money(order.total);
+ document.getElementById("cardArea").classList.add("hidden");
+ document.getElementById("bankArea").classList.add("hidden");
+ document.getElementById("qrMessage").textContent="";
+ goPage(2);
+}
+
+function selectPayment(type,button){
+ paymentMethod=type;
+ document.querySelectorAll(".option").forEach(b=>b.classList.remove("selected"));
+ button.classList.add("selected");
+ document.getElementById("cardArea").classList.toggle("hidden",type!=="card");
+ document.getElementById("bankArea").classList.toggle("hidden",type!=="bank");
+ order.payment=type==="card"?"Thẻ cào":"Chuyển khoản ngân hàng / ZaloPay";
+ saveOrder();
+}
+
+function submitCard(){
+ const network=document.getElementById("network").value;
+ const serial=document.getElementById("serial").value.trim();
+ const code=document.getElementById("cardCode").value.trim();
+
+ if(!network||!serial||!code){
+  alert("Vui lòng nhập đủ nhà mạng, mã seri và mã nạp.");
+  return;
+ }
+
+ order.payment="Thẻ cào ("+network+")";
+ order.status="Đã gửi yêu cầu, chờ xác minh thanh toán";
+ // Không lưu mã seri và mã nạp vào hóa đơn.
+ saveOrder();
+ renderInvoice();
+ goPage(3);
+}
+
+function showQR(){
+ document.getElementById("qr").innerHTML="QR MINH HỌA<br>Chưa có mã thanh toán thật";
+ document.getElementById("qrMessage").textContent="QR hiển thị trong 3 giây.";
+ setTimeout(()=>{
+  renderInvoice();
+  goPage(3);
+ },3000);
+}
+
+function submitBank(){
+ const transaction=document.getElementById("transaction").value.trim();
+ if(!transaction){
+  alert("Vui lòng nhập mã giao dịch nếu đã chuyển khoản.");
+  return;
+ }
+ order.status="Đã gửi mã giao dịch, chờ xác minh";
+ order.transaction=transaction;
+ saveOrder();
+ renderInvoice();
+ goPage(3);
+}
+
+function saveOrder(){
+ if(!order)return;
+ let orders=[];
+ try{orders=JSON.parse(localStorage.getItem("ticketOrders")||"[]")}catch(e){}
+ const index=orders.findIndex(o=>o.id===order.id);
+ if(index>=0)orders[index]=order;
+ else orders.push(order);
+ localStorage.setItem("ticketOrders",JSON.stringify(orders));
+}
+
+function lookupOrder(){
+ const id=document.getElementById("lookup").value.trim();
+ let orders=[];
+ try{orders=JSON.parse(localStorage.getItem("ticketOrders")||"[]")}catch(e){}
+ const found=orders.find(o=>o.id.toLowerCase()===id.toLowerCase());
+ if(!found){
+  document.getElementById("lookupResult").textContent="Không tìm thấy đơn trên trình duyệt này.";
+  return;
+ }
+ order=found;
+ renderInvoice();
+ document.getElementById("lookupResult").textContent="Đã tìm thấy đơn "+found.id;
+ goPage(3);
+}
+
+function renderInvoice(){
+ if(!order)return;
+ document.getElementById("invoice").innerHTML=`
+ <h2>HÓA ĐƠN ĐẶT VÉ</h2>
+ <p style="text-align:center">Khu vé - Trần Thị Kim Thùy</p>
+ <div class="line"><span>Mã đơn hàng</span><b>${escapeHTML(order.id)}</b></div>
+ <div class="line"><span>Người đặt</span><b>${escapeHTML(order.name)}</b></div>
+ <div class="line"><span>Số điện thoại</span><b>${escapeHTML(order.phone)}</b></div>
+ <div class="line"><span>Loại vé</span><b>${escapeHTML(order.ticketName)}</b></div>
+ <div class="line"><span>Số lượng</span><b>${order.qty}</b></div>
+ <div class="line"><span>Ghi chú</span><b>${escapeHTML(order.note||"Không có ghi chú")}</b></div>
+ <div class="line"><span>Phương thức thanh toán</span><b>${escapeHTML(order.payment||"Chưa chọn")}</b></div>
+ <div class="line"><span>Thời gian đặt</span><b>${escapeHTML(order.created)}</b></div>
+ <div class="line"><span>Tổng tiền</span><b>${money(order.total)}</b></div>
+ <p>Trạng thái: <span class="status">${escapeHTML(order.status)}</span></p>
+ <p class="note">Đây là hóa đơn thông tin đặt vé. Thanh toán chỉ được xác nhận sau khi kiểm tra giao dịch thực tế.</p>
+ `;
+}
+</script>
+</body>
+</html>
